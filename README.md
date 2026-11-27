@@ -6,6 +6,7 @@ Money spent so far, on the [omp](https://github.com/can1357/oh-my-pi) status lin
 | --------------- | --------------------------------- | ------------------------------ |
 | LiteLLM proxy | `litellm-proxy $12.40/$250 ↻Dec 1` | budget bar (omp's own adapter) |
 | DeepSeek | `deepseek $8.20 left` | `Credit balance` limit |
+| OpenAI platform | `openai $8.20 left` or `openai $12.40 spent` | unchanged |
 | anything else   | cleared                           | unchanged                      |
 
 omp's built-in `usage` segment shows subscription quota windows (`5h`, `7d`, …) as percentages. It has no path for a dollar figure, so balances and budgets go into the `status` segment instead — that is the whole reason this plugin exists.
@@ -40,6 +41,31 @@ omp config set statusLine.rightSegments '["status","usage","session_name","token
 `usage` is optional — add it if you also want the subscription windows (Anthropic 5h/7d, Copilot requests, …). Drop either segment and the corresponding text disappears. Left segments stay at their defaults unless you set `statusLine.leftSegments`.
 
 ## Provider configuration
+
+### OpenAI
+
+OpenAI has no documented endpoint that returns the remaining platform balance.
+The plugin uses the two figures that are reachable, in this order:
+
+| Credential | Call | Bar |
+| --- | --- | --- |
+| `OPENAI_SESSION_KEY` (browser `__Secure-next-auth.session-token` from platform.openai.com), or a legacy user key (`sk-…`, not `sk-proj-…`/`sk-admin-…`) | `GET /v1/dashboard/billing/credit_grants` | `openai $8.20 left` |
+| `OPENAI_ADMIN_KEY` (`sk-admin-…`), or the model key when it is an Admin key | `GET /v1/organization/costs` | `openai $12.40 spent` (UTC month to date) |
+
+Put either variable in `~/.omp/agent/.env`; omp loads that file into the process
+environment.
+
+- Project keys (`sk-proj-…`) and Admin keys are rejected by `credit_grants` with
+  `403 … must be made with a session key`, so the balance path needs a session
+  token or an old user key.
+- `/organization/costs` reports spend, not remaining balance; without an Admin
+  key (or `api.usage.read`) it answers `403`.
+- The plugin matches only `provider: openai` with `baseUrl` host
+  `api.openai.com`; an OpenAI-compatible proxy belongs to its own provider
+  (LiteLLM, …) and is not read as OpenAI.
+- With a plain project key and neither variable set, the bar stays blank: no
+  dollar figure is readable for that account. The `/spend` command then reports
+  `nothing to show`.
 
 ### DeepSeek
 
@@ -105,6 +131,8 @@ Notes:
 | `401 … Virtual Key expected` in the toast | `models.yaml` `apiKey` holds an env var name; use the literal `sk-…` key. |
 | LiteLLM text without `$spent/$limit` | `/key/info` refused the key and `/v2/user/info` had no `max_budget`; only a spend figure is shown. |
 | DeepSeek shows `nothing to show` | Key missing (`omp auth login deepseek`), or the USD balance entry is absent. |
+| OpenAI shows `nothing to show` | The model key is a project key and neither `OPENAI_SESSION_KEY` nor `OPENAI_ADMIN_KEY` is set; see the OpenAI section. |
+| OpenAI shows `… spent`, no balance | No official endpoint exposes the balance; an Admin key reports spend only. |
 
 ## Development
 
@@ -121,6 +149,7 @@ Layout:
 | `src/index.ts` | Extension entry: registers usage adapters, `/spend`, and status refreshes. |
 | `src/adapters.ts` | Table of providers: how a model is matched, how its text is fetched. |
 | `src/litellm.ts` | `/key/info` + `/v2/user/info` parsing and `$spent/$limit ↻date` formatting. |
+| `src/openai.ts` | `credit_grants` balance and `/organization/costs` month-to-date spend. |
 | `src/deepseek.ts` | `/user/balance` parsing and `$X left` formatting. |
 | `src/http.ts` | JSON GET with a deadline; returns `undefined` instead of throwing. |
 | `src/format.ts`, `src/guards.ts` | Formatting and JSON narrowing helpers. |

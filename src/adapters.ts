@@ -1,6 +1,7 @@
 import type { ExtensionContext, ProviderConfig } from "@oh-my-pi/pi-coding-agent";
 import { fetchBalance, formatBalance, isDeepSeekHost } from "./deepseek";
 import { fetchBudget } from "./litellm";
+import { fetchOpenAIText, isOpenAIApiHost } from "./openai";
 
 export type ActiveModel = NonNullable<ExtensionContext["model"]>;
 
@@ -59,6 +60,12 @@ export const ADAPTERS: readonly SpendAdapter[] = [
 			return left === undefined ? undefined : formatBalance(provider, left);
 		},
 		usage: deepseekUsage,
+	},
+	{
+		// OpenAI's platform API: credit balance when the key can read it, month-to-date spend otherwise.
+		providers: [],
+		matches: (model) => model.provider === "openai" && isOpenAIApiHost(model.baseUrl),
+		text: (provider, _model, apiKey, signal) => fetchOpenAIText(provider, apiKey, signal),
 	},
 	{
 		// omp reports LiteLLM budgets in /usage already; the extension only formats them for the bar.

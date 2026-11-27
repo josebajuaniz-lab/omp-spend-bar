@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { isDeepSeekHost, parseBalance } from "./deepseek";
 import { money, shortDate } from "./format";
 import { formatBudget, managementBaseUrl, parseBudget, parseResetAt } from "./litellm";
+import { isOpenAIApiHost, monthStartSeconds, parseCosts, parseCreditGrants } from "./openai";
 
 const DEC_1 = Date.parse("2026-12-01T00:00:00Z");
 
@@ -87,5 +88,41 @@ describe("deepseek", () => {
 		assert.equal(parseBalance({ balance_infos: [{ currency: "CNY", total_balance: "50" }] }), undefined);
 		assert.equal(parseBalance({}), undefined);
 		assert.equal(parseBalance("nope"), undefined);
+	});
+});
+
+describe("openai", () => {
+	it("matches only the platform host", () => {
+		assert.equal(isOpenAIApiHost("https://api.openai.com/v1"), true);
+		assert.equal(isOpenAIApiHost("https://api.openai.com"), true);
+		assert.equal(isOpenAIApiHost("https://openai.example.com/v1"), false);
+		assert.equal(isOpenAIApiHost("https://api.openai.com.evil.test/v1"), false);
+		assert.equal(isOpenAIApiHost(undefined), false);
+	});
+
+	it("starts the billing window at the UTC month boundary", () => {
+		assert.equal(monthStartSeconds(Date.parse("2026-11-27T15:00:00Z")), Date.parse("2026-11-01T00:00:00Z") / 1000);
+		assert.equal(monthStartSeconds(Date.parse("2026-01-01T00:00:00Z")), Date.parse("2026-01-01T00:00:00Z") / 1000);
+	});
+
+	it("reads the available credit", () => {
+		assert.equal(parseCreditGrants({ total_available: 12.5 }), 12.5);
+		assert.equal(parseCreditGrants({ total_available: "3.20" }), 3.2);
+		assert.equal(parseCreditGrants({ total_granted: 20 }), undefined);
+		assert.equal(parseCreditGrants("nope"), undefined);
+	});
+
+	it("sums USD cost buckets and ignores other currencies", () => {
+		const body = {
+			data: [
+				{ results: [{ amount: { value: 0.06, currency: "usd" } }, { amount: { value: 1.5 } }] },
+				{ results: [{ amount: { value: 2, currency: "USD" } }, { amount: { value: 9, currency: "eur" } }] },
+			],
+		};
+		assert.equal(parseCosts(body), 3.56);
+		assert.equal(parseCosts({ data: [] }), 0);
+		assert.equal(parseCosts({ data: [{ results: null }] }), 0);
+		assert.equal(parseCosts({}), undefined);
+		assert.equal(parseCosts(null), undefined);
 	});
 });

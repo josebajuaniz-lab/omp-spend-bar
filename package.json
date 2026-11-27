@@ -1,7 +1,7 @@
 {
 	"name": "omp-spend-bar",
-	"version": "0.1.0",
-	"description": "omp status-line segment text for provider spend: LiteLLM key budget and DeepSeek credit balance",
+	"version": "0.2.0",
+	"description": "omp status-line segment text for provider spend: LiteLLM key budget, DeepSeek credit balance, and OpenAI platform balance/spend",
 	"license": "MIT",
 	"type": "module",
 	"files": ["src", "README.md", "LICENSE"],
