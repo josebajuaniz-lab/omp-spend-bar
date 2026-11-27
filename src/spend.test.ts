@@ -4,6 +4,7 @@ import { isDeepSeekHost, parseBalance } from "./deepseek";
 import { money, shortDate } from "./format";
 import { formatBudget, managementBaseUrl, parseBudget, parseResetAt } from "./litellm";
 import { isOpenAIApiHost, monthStartSeconds, parseCosts, parseCreditGrants } from "./openai";
+import { parsePluginSetting } from "./settings";
 
 const DEC_1 = Date.parse("2026-12-01T00:00:00Z");
 
@@ -124,5 +125,15 @@ describe("openai", () => {
 		assert.equal(parseCosts({ data: [{ results: null }] }), 0);
 		assert.equal(parseCosts({}), undefined);
 		assert.equal(parseCosts(null), undefined);
+	});
+});
+
+describe("settings", () => {
+	it("reads this plugin's non-empty string setting from the lock file body", () => {
+		const body = { settings: { "omp-spend-bar": { openaiAdminKey: " sk-admin-x ", blank: "  " }, other: { openaiAdminKey: "no" } } };
+		assert.equal(parsePluginSetting(body, "openaiAdminKey"), "sk-admin-x");
+		assert.equal(parsePluginSetting(body, "blank"), undefined);
+		assert.equal(parsePluginSetting({ settings: {} }, "openaiAdminKey"), undefined);
+		assert.equal(parsePluginSetting(null, "openaiAdminKey"), undefined);
 	});
 });

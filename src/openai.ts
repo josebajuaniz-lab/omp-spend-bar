@@ -1,6 +1,7 @@
 import { money } from "./format";
 import { asNumber, asRecord } from "./guards";
 import { getJson } from "./http";
+import { readPluginSetting } from "./settings";
 
 export const OPENAI_API_BASE = "https://api.openai.com";
 
@@ -86,7 +87,10 @@ export async function fetchOpenAIText(
 		const left = parseCreditGrants(body);
 		if (left !== undefined) return `${provider} ${money(left)} left`;
 	}
-	const admin = process.env.OPENAI_ADMIN_KEY?.trim() ?? (apiKey.startsWith("sk-admin-") ? apiKey : undefined);
+	const admin =
+		(await readPluginSetting("openaiAdminKey")) ||
+		process.env.OPENAI_ADMIN_KEY?.trim() ||
+		(apiKey.startsWith("sk-admin-") ? apiKey : undefined);
 	if (!admin) return undefined;
 	const spent = await fetchMonthSpend(admin, signal);
 	return spent === undefined ? undefined : `${provider} ${money(spent)} spent`;

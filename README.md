@@ -50,10 +50,18 @@ The plugin uses the two figures that are reachable, in this order:
 | Credential | Call | Bar |
 | --- | --- | --- |
 | `OPENAI_SESSION_KEY` (browser `__Secure-next-auth.session-token` from platform.openai.com), or a legacy user key (`sk-…`, not `sk-proj-…`/`sk-admin-…`) | `GET /v1/dashboard/billing/credit_grants` | `openai $8.20 left` |
-| `OPENAI_ADMIN_KEY` (`sk-admin-…`), or the model key when it is an Admin key | `GET /v1/organization/costs` | `openai $12.40 spent` (UTC month to date) |
+| `openaiAdminKey` plugin setting or `OPENAI_ADMIN_KEY` (`sk-admin-…`), or the model key when it is an Admin key | `GET /v1/organization/costs` | `openai $12.40 spent` (UTC month to date) |
 
-Put either variable in `~/.omp/agent/.env`; omp loads that file into the process
-environment.
+Keep the project key (`sk-proj-…`) as the model `apiKey` in `models.yaml`: an
+Admin key cannot call models. Store the Admin key in the plugin config:
+
+```sh
+omp plugin config set omp-spend-bar openaiAdminKey sk-admin-…
+```
+
+or put `OPENAI_ADMIN_KEY` / `OPENAI_SESSION_KEY` in `~/.omp/agent/.env`; omp
+loads that file into the process environment. The plugin setting wins over the
+variable.
 
 - Project keys (`sk-proj-…`) and Admin keys are rejected by `credit_grants` with
   `403 … must be made with a session key`, so the balance path needs a session
@@ -63,7 +71,7 @@ environment.
 - The plugin matches only `provider: openai` with `baseUrl` host
   `api.openai.com`; an OpenAI-compatible proxy belongs to its own provider
   (LiteLLM, …) and is not read as OpenAI.
-- With a plain project key and neither variable set, the bar stays blank: no
+- With a plain project key and no Admin key or session token configured, the bar stays blank: no
   dollar figure is readable for that account. The `/spend` command then reports
   `nothing to show`.
 
