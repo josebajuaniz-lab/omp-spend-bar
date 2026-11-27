@@ -36,7 +36,10 @@ The plugin writes a `setStatus("spend-bar", …)` entry. Only the `status` segme
 ```sh
 omp config set statusLine.preset custom
 omp config set statusLine.rightSegments '["status","usage","session_name","token_total","cost","context_pct"]'
+omp config set statusLine.showHookStatus false
 ```
+
+`showHookStatus: false` drops the second copy. omp prints every `setStatus` entry a second time as its own line under the composer, gated by `statusLine.showHookStatus` (on by default) with no check for the `status` segment, so leaving it on shows `deepseek $8.20 left` in the bar *and* under the prompt. The `status` segment keeps rendering the text, so nothing else is lost.
 
 `usage` is optional — add it if you also want the subscription windows (Anthropic 5h/7d, Copilot requests, …). Drop either segment and the corresponding text disappears. Left segments stay at their defaults unless you set `statusLine.leftSegments`.
 
@@ -135,6 +138,7 @@ Notes:
 | Symptom | Cause |
 | --- | --- |
 | Nothing on the bar | `status` is not in `statusLine.rightSegments`/`leftSegments`, or `statusLine.preset` is not `custom`. |
+| Text shows twice: in the bar and on its own line under the composer | `statusLine.showHookStatus` is on while `status` is in the segments; run `omp config set statusLine.showHookStatus false`. |
 | Bar shows a stale number | Cache window (5 min) or a failed refresh with last-good text. `/spend` forces a read. |
 | `401 … Virtual Key expected` in the toast | `models.yaml` `apiKey` holds an env var name; use the literal `sk-…` key. |
 | LiteLLM text without `$spent/$limit` | `/key/info` refused the key and `/v2/user/info` had no `max_budget`; only a spend figure is shown. |
